@@ -1,7 +1,7 @@
 import os
 
 output_file = "iterative_combined_output.txt"
-workspace_dir = "/Users/thubpham/knowledge_graph_ingestion/knowledge_graph_extractor/kg_extractor"  # folder
+workspace_dir = "/Users/thubpham/knowledge_graph_ingestion"  # folder
 excluded_dirs = {"__init__.py", "input_text.py", "utils.py", "__pycache__"}
 
 with open(output_file, "w", encoding="utf-8") as outfile:
