@@ -1,5 +1,8 @@
 # Knowledge Graph Extraction System
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
+
 A powerful knowledge graph extraction system that uses Google's Gemini AI models to extract entities and relationships from text documents and stores them in a FalkorDB graph database.
 
 ## Features
@@ -33,15 +36,11 @@ The system processes documents through several stages:
 
 ```bash
 # Create virtual environment
-python -m venv graphiti-env
-source graphiti-env/bin/activate  # On Windows: graphiti-env\Scripts\activate
+python -m venv .graphiti-env
+source .graphiti-env/bin/activate  # On Windows: .graphiti-env\Scripts\activate
 
 # Install required packages
-pip install falkordb
-pip install google-genai
-pip install python-dotenv
-pip install asyncio
-pip install uuid
+pip install -r knowledge_graph_extractor/requirements.txt
 ```
 
 ### 2. Set Up FalkorDB
