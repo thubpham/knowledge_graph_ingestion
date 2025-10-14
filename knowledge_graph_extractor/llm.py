@@ -58,15 +58,12 @@ def llm_call(user_prompt, sys_prompt):
 
 def chunking_llm_call(input_text, sys_prompt):
 	words = input_text.split()
-
 	if len(words) <= 3000:
 		print("Input is within the word limit. No chunking needed.")
 		return {"chunk_1": input_text}
-
 	try:
 		print("Input is longer than 3000 words. Chunking...")
 		user_prompt = f"""Below is the article to be processed:\n{input_text}"""
-
 		res = ai_client.models.generate_content(
 			model="gemini-2.5-flash",
 			config=types.GenerateContentConfig(
@@ -78,13 +75,11 @@ def chunking_llm_call(input_text, sys_prompt):
 			),
 			contents=user_prompt
 		)
-
 		raw_output = res.text
 		json_output = salvage_json(raw_output)
 		print("Chunking completed. Waiting 30 seconds to respect rate limits...\n")
 		time.sleep(30)
 		return json_output
-
 	except Exception as e:
 		print(f"An error occurred during chunking: {e}")
 		return {"error": str(e)}
