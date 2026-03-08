@@ -7,25 +7,6 @@ from google.genai import types
 from google.genai.errors import ClientError
 from .config import ai_client
 
-
-def salvage_json(raw_output):
-	if not raw_output:
-		return None
-
-	raw_output = re.sub(r"^```json|^```|```$", "", raw_output.strip(), flags=re.MULTILINE).strip()
-
-	try:
-		return json.loads(raw_output)
-	except json.JSONDecodeError:
-		print("Warning: Initial JSON parse failed, attempting salvage.")
-		match = re.search(r"\{.*\}", raw_output, re.DOTALL)
-		if match:
-			try:
-				return json.loads(match.group(0))
-			except json.JSONDecodeError:
-				print("Error: Could not parse JSON after salvage.")
-				raise
-
 def generate_embedding(input_data):
     time.sleep(0.3)
     result = ai_client.models.embed_content(

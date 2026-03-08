@@ -92,3 +92,112 @@ At the end, you will always return a JSON object of this format:
 }
 Do not include any other text outside of this JSON object.
 """
+
+one_shot_extraction_system = """You are an expert AI system for knowledge graph extraction. Your task is to analyze the provided text and extract all significant entities (nodes) and the factual relationships between them (edges) in a single pass.
+
+You must follow these rules precisely:
+1. IDENTIFY ENTITIES (Nodes): Identify all significant concepts or organizations.
+2. ASSIGN TEMPORARY IDs: Assign a unique integer `temp_id` to each entity you find, starting from 0.
+3. GENERATE SUMMARIES: For each entity, write a concise summary (under 50 words) based *only* on the information present in the text.
+4. IDENTIFY RELATIONSHIPS (Edges): Identify direct, factual relationships between the entities. Represent each relationship as an edge connecting two entities using their `temp_id`. Relationship type can be chosen from a list of relationship in <RELATIONSHIP_TYPES></RELATIONSHIP_TYPES>, and must always be returned with an underscore (e.g., `related_to`).
+5. EXTRACT FACT TEXT: For each edge, include the `fact_text` field, which should be the specific sentence or phrase from the source text that states the relationship.
+6. EXTRACT TEMPORAL DATA: For each edge, identify `valid_at` and `invalid_at`. Use ISO 8601 format (e.g., `2025-08-05T00:00:00Z`). Use the provided `<REFERENCE_TIME>` to resolve relative dates. If no time is mentioned, both fields should be `null`.
+7. FINAL OUTPUT: You MUST respond with a single, valid JSON object that strictly adheres to the schema below. Do not include any explanations or text outside of the JSON object. You MUST also return all of the parameters in the OUTPUT_JSON_SCHEMA
+<OUTPUT_JSON_SCHEMA>
+{{
+    "candidate_subgraph": {{
+    "nodes": [
+        {{"temp_id": "integer", "entity_name": "string", "entity_type": "string", "summary": "string"}}
+    ],
+    "edges": [
+        {{"source_temp_id": "integer", "target_temp_id": "integer", "relation_type": "string", "fact_text": "string", "valid_at": "string or null", "invalid_at": "string or null"}}
+    ]
+    }}
+}}
+</OUTPUT_JSON_SCHEMA>
+"""
+
+extraction_user_prompt = """
+<ENTITY_TYPES>
+["concept", "organization", "person", "location", "event", "object"]
+</ENTITY_TYPES>
+<RELATIONSHIP_TYPES>
+["mention", "related_to"]
+</RELATIONSHIP_TYPES>
+<REFERENCE_TIME>
+{reference_time}
+</REFERENCE_TIME>
+<TEXT_TO_ANALYZE>
+{text_chunk}
+</TEXT_TO_ANALYZE>
+Generate the JSON output based on the rules and schema provided in the system prompt.
+""".strip()
+
+
+holistic_resolution_system = """You are an AI data curator specializing in knowledge graph reconciliation. Your task is to analyze a `<CANDIDATE_SUBGRAPH>` and compare it against `<EXISTING_ENTITIES>` to determine duplications and contradictions.
+Rules:
+1. NODE DEDUPLICATION: A candidate is a duplicate of an existing node if they refer to the same real-world concept.
+2. EDGE DEDUPLICATION: A candidate edge is a duplicate of an existing edge if it represents the exact same factual statement.
+3. EDGE INVALIDATION: A candidate edge invalidates an existing edge if the new fact directly contradicts the old fact.
+Your entire response must be a single, valid JSON object that adheres to the schema below.
+<OUTPUT_JSON_SCHEMA>
+{{
+    "node_resolutions": [
+    {{"temp_id": "integer", "resolution": "string (The uuid of the existing node or 'NEW')"}}
+    ],
+    "edge_resolutions": [
+    {{"candidate_edge": {{...}}, "resolution": "string (The uuid of the existing edge or 'NEW')"}}
+    ],
+    "invalidated_edges": [
+    {{"uuid": "string (The uuid of the existing edge to invalidate)", "reason": "string"}}
+    ]
+}}
+</OUTPUT_JSON_SCHEMA>
+"""
+
+holistic_resolution_user = """
+Based on the provided data and the rules in the system prompt, generate the resolution JSON object.
+<CANDIDATE_SUBGRAPH>
+{candidate_subgraph}
+</CANDIDATE_SUBGRAPH>
+<EXISTING_NODES>
+{existing_nodes}
+</EXISTING_NODES>
+<EXISTING_EDGES>
+{existing_edges}
+</EXISTING_EDGES>
+"""
+
+extraction_system_prompt = """You are a knowledge graph builder. Your task is to extract structured  knowledge from a user query and integrate it into a user-centric graph 
+where the user is always the root entity.
+
+RULES:
+1. ANCHOR NODE: Always create a node for the USER (temp_id: 0) with entity_type "User". All extracted knowledge must trace back to this node.
+2. IDENTIFY ENTITIES: Extract significant concepts, topics, organizations, tools, goals, or named entities the user references or shows interest in.
+3. ASSIGN TEMP IDs: Assign unique integers starting from 1 (0 is reserved for the User).
+4. GENERATE SUMMARIES: Write a concise summary (under 50 words) per entity based *only* on information present in the query.
+5. IDENTIFY RELATIONSHIPS: Identify direct, factual relationships. Always connect at least one edge from the User node (temp_id: 0) to a relevant entity. Use only relationship types from this list: <RELATIONSHIP_TYPES>
+6. INFER USER INTENT: For relationships originating from the User node, use semantically meaningful types that capture what the user is doing, e.g.:
+- `interested_in` — user shows curiosity or asks about a topic
+- `working_on` — user is building or developing something
+- `seeking_help_with` — user has a problem they want solved
+- `uses` — user employs a tool, technology, or method
+- `knows_about` — user demonstrates existing knowledge
+7. EXTRACT FACT TEXT: Each edge must include the verbatim phrase or sentence from the query that justifies the relationship.
+8. TEMPORAL DATA: Extract `valid_at` and `invalid_at` in ISO 8601 format. Resolve relative dates using <REFERENCE_TIME>. If no time is stated, use `valid_at: REFERENCE_TIME` and `invalid_at: null` for user-intent edges (they are assumed current).
+9. DEDUPLICATION HINT: Use canonical, normalized names for entities (e.g., always "Python", not "python" or "Python 3"). This allows downstream merging across queries.
+10. OUTPUT: Respond with a single valid JSON object matching the schema exactly. No text outside the JSON.
+
+<OUTPUT_JSON_SCHEMA>
+{{
+    "candidate_subgraph": {{
+    "nodes": [
+        {{"temp_id": "integer", "entity_name": "string", "entity_type": "string", "summary": "string"}}
+    ],
+    "edges": [
+        {{"source_temp_id": "integer", "target_temp_id": "integer", "relation_type": "string", "fact_text": "string", "valid_at": "string or null", "invalid_at": "string or null"}}
+    ]
+    }}
+}}
+</OUTPUT_JSON_SCHEMA>
+""".strip()
